@@ -14,6 +14,7 @@ module Control.Eff.Reader.Strict ( Reader (..)
                               , local
                               , reader
                               , runReader
+                              , runNoReader
                               ) where
 
 import Control.Eff.Internal
@@ -54,7 +55,7 @@ ask = send Ask
 
 -- | The handler of Reader requests. The return type shows that all Reader
 -- requests are fully handled.
-runReader :: e -> Eff (Reader e ': r) w -> Eff r w
+runReader :: e -> Eff (Reader e ': r) a -> Eff r a
 runReader !e = handle_relay
   return
   (\Ask -> ($ e))
@@ -69,6 +70,12 @@ local f m = do
     h :: Reader e t -> (t -> Eff r b) -> Eff r b
     h Ask = ($ e)
   interpose return h m
+
+-- | Run a reader effect without any argument. If the environment gets
+-- requested, then @Nothing@ is returned.
+runNoReader :: Eff (Reader e ': r) a -> Eff r (Maybe a)
+runNoReader = handle_relay (return . Just) (\Ask _ -> return Nothing)
+{-# INLINE runNoReader #-}
 
 -- | Request the environment value using a transformation function.
 reader :: (Member (Reader e) r) => (e -> a) -> Eff r a

@@ -23,6 +23,7 @@ module Control.Eff.Writer.Strict ( Writer(..)
                                , execLastWriter
                                , execListWriter
                                , execMonoidWriter
+                               , ignoreWriter
                                ) where
 
 import Control.Eff.Internal
@@ -125,3 +126,8 @@ execFirstWriter = fmap snd . runFirstWriter
 execLastWriter :: Eff (Writer w ': r) a -> Eff r (Maybe w)
 execLastWriter = fmap snd . runLastWriter
 {-# INLINE execLastWriter #-}
+
+-- | Ignore Writer requests.
+ignoreWriter :: Eff (Writer w ': r) a -> Eff r a
+ignoreWriter = handle_relay return (\(Tell _) k -> k ())
+{-# INLINE ignoreWriter #-}

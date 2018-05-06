@@ -13,6 +13,7 @@ module Control.Eff.Reader.Lazy ( Reader (..)
                               , local
                               , reader
                               , runReader
+                              , runNoReader
                               ) where
 
 import Control.Eff.Internal
@@ -53,10 +54,16 @@ ask = send Ask
 
 -- | The handler of Reader requests. The return type shows that all Reader
 -- requests are fully handled.
-runReader :: e -> Eff (Reader e ': r) w -> Eff r w
+runReader :: e -> Eff (Reader e ': r) a -> Eff r a
 runReader e = handle_relay
   return
   (\Ask -> ($ e))
+
+-- | Run a reader effect without any argument. If the environment gets
+-- requested, then @Nothing@ is returned.
+runNoReader :: Eff (Reader e ': r) a -> Eff r (Maybe a)
+runNoReader = handle_relay (return . Just) (\Ask _ -> return Nothing)
+{-# INLINE runNoReader #-}
 
 -- | Locally rebind the value in the dynamic environment This function is like a
 -- relay; it is both an admin for Reader requests, and a requestor of them.
