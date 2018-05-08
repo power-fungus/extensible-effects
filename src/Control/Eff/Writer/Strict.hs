@@ -18,6 +18,7 @@ module Control.Eff.Writer.Strict ( Writer(..)
                                , runLastWriter
                                , runListWriter
                                , runMonoidWriter
+                               , runMonadWriter
                                , execWriter
                                , execFirstWriter
                                , execLastWriter
@@ -96,6 +97,20 @@ runFirstWriter = runWriter (\w b -> Just w <|> b) Nothing
 -- | Handle Writer requests by overwriting previous values.
 runLastWriter :: Eff (Writer w ': r) a -> Eff r (a, Maybe w)
 runLastWriter = runWriter (\w b -> b <|> Just w) Nothing
+
+-- | Handle Writer requests by accumulating them inside a monad. A custom
+-- function is given
+runMonadWriter :: Monad m
+               => (w -> m v)            -- ^ The function that embedds the told value
+               -> Eff (Writer w ': r) a -- ^ The effectful computation with writer effect
+               -> Eff r (a, m [v])      -- ^ The effect with the writer effect extracted and accumulated within a monad
+runMonadWriter f = runWriter b (return [])
+  where
+    -- b :: Monad m => w -> m [v] -> m [v]
+    b w ms = do
+      v <- f w
+      vs <- ms
+      return $ v:vs
 
 -- | Handle Writer requests, using a user-provided function to accumulate
 --   values and returning the final accumulated values.
