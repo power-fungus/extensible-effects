@@ -70,6 +70,7 @@ library
                        Control.Eff.Cut
                        Control.Eff.Example
                        Control.Eff.Exception
+                       Control.Eff.Success
                        Control.Eff.Fresh
                        Control.Eff.Lift
                        Control.Eff.NdetEff
