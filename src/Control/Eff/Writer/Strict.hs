@@ -27,8 +27,9 @@ module Control.Eff.Writer.Strict ( Writer(..)
                                , ignoreWriter
                                ) where
 
-import Control.Eff.Internal
-import Data.OpenUnion
+import Control.Eff
+import Control.Eff.Extend
+import Control.Eff.Lift
 
 import Control.Applicative ((<|>))
 
