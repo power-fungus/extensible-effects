@@ -12,6 +12,9 @@
 -- | Strict write-only state
 module Control.Eff.Writer.Strict ( Writer(..)
                                , tell
+                               , tellAll
+                               , tellAll1
+                               , tellAll2
                                , censor
                                , runWriter
                                , runFirstWriter
@@ -32,6 +35,7 @@ import Control.Eff.Extend
 import Control.Eff.Lift
 
 import Control.Applicative ((<|>))
+import Data.List (foldl')
 
 import Control.Monad.Base
 import Control.Monad.Trans.Control
@@ -63,6 +67,14 @@ instance ( MonadBase m m
 -- | Write a new value.
 tell :: Member (Writer w) r => w -> Eff r ()
 tell !w = send $ Tell w
+
+-- TODO: benchmark
+tellAll :: (Member (Writer w) r) => [w] -> Eff r ()
+tellAll !ws = mapM_ tell ws
+tellAll1 :: (Member (Writer w) r, Foldable f) => f w -> Eff r ()
+tellAll1 !ws = foldl' (\m w -> m >> tell w) (return ()) ws
+tellAll2 :: (Member (Writer w) r, Foldable f) => f w -> Eff r ()
+tellAll2 !ws = foldr (\w m -> tell w >> m) (return ()) ws
 
 -- | Transform the state being produced.
 censor :: forall w a r. Member (Writer w) r => (w -> w) -> Eff r a -> Eff r a
@@ -99,8 +111,9 @@ runFirstWriter = runWriter (\w b -> Just w <|> b) Nothing
 runLastWriter :: Eff (Writer w ': r) a -> Eff r (a, Maybe w)
 runLastWriter = runWriter (\w b -> b <|> Just w) Nothing
 
--- | Handle Writer requests by accumulating them inside a monad. A custom
--- function is given
+-- | Handle Writer requests by accumulating them inside a monad.
+--
+-- A custom function is given to embed
 runMonadWriter :: Monad m
                => (w -> m v)            -- ^ The function that embedds the told value
                -> Eff (Writer w ': r) a -- ^ The effectful computation with writer effect
