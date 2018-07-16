@@ -23,6 +23,12 @@ module Control.Eff.Writer.Strict ( Writer(..)
                                , execLastWriter
                                , execListWriter
                                , execMonoidWriter
+                               , runMonadWriter
+                               , runMonadWriter1
+                               , runMonadWriter2
+                               , runMonadWriter3
+                               , runMonadWriter4
+                               , runMonadWriter5
                                ) where
 
 import Control.Eff
@@ -30,6 +36,8 @@ import Control.Eff.Extend
 import Control.Eff.Lift
 
 import Control.Applicative ((<|>))
+import Control.Arrow (second)
+import Control.Monad (void)
 
 import Control.Monad.Base
 import Control.Monad.Trans.Control
@@ -126,3 +134,47 @@ execFirstWriter = fmap snd . runFirstWriter
 execLastWriter :: Eff (Writer w ': r) a -> Eff r (Maybe w)
 execLastWriter = fmap snd . runLastWriter
 {-# INLINE execLastWriter #-}
+
+-- MONAD BASED WRITERS
+
+-- | Handle Writer requests by accumulating them inside a monad.
+--
+-- A custom function is given to embed the
+runMonadWriter :: Monad m
+               => (w -> m v)            -- ^ The function that embedds the told value
+               -> Eff (Writer w ': r) a -- ^ The effectful computation with writer effect
+               -> Eff r (a, m [v])      -- ^ The effect with the writer effect extracted and accumulated within a monad
+runMonadWriter f = runWriter b (return [])
+  where
+    -- b :: Monad m => w -> m [v] -> m [v]
+    b w ms = do
+      v <- f w
+      vs <- ms
+      return $ v:vs
+
+
+runMonadWriter1
+  :: Monad m => (w -> m v) -> Eff (Writer w ': r) a -> Eff r (m (a, [v]))
+runMonadWriter1 f = fmap t . runMonadWriter f
+  where
+    t (a, m) = do
+      v <- m
+      return (a, v)
+
+runMonadWriter2
+  :: Monad m => (w -> m v) -> Eff (Writer w ': r) a -> Eff r (a, m ())
+runMonadWriter2 f = fmap (second void) . runMonadWriter f
+
+runMonadWriter3
+  :: Monad m => (w -> m v) -> Eff (Writer w ': r) a -> Eff r (m a)
+runMonadWriter3 f = fmap t . runMonadWriter f
+  where
+    t (a, m) = m >> return a
+
+runMonadWriter4
+  :: Monad m => (w -> m v) -> Eff (Writer w ': r) a -> Eff r (m [v])
+runMonadWriter4 f = fmap snd . runMonadWriter f
+
+runMonadWriter5
+  :: Monad m => (w -> m v) -> Eff (Writer w ': r) a -> Eff r (m ())
+runMonadWriter5 f = fmap (void . snd) . runMonadWriter f
