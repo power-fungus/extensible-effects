@@ -11,7 +11,6 @@
 --  This is similar to the Exception effect with the difference that the
 -- intention of this effect is that the early termination is desired.
 module Control.Eff.Success ( Success (..)
-                            , Done
                             , success
                             , success_
                             , done
@@ -33,7 +32,6 @@ import Control.Monad.Base
 import Control.Monad.Trans.Control
 
 newtype Success s v = Success s
-type Done = Success ()
 
 instance ( MonadBase m m
          , SetMember Lift (Lift m) r
@@ -54,9 +52,6 @@ success_ :: Member (Success s) r => s -> Eff r ()
 success_ s = send (Success s)
 {-# INLINE success_ #-}
 
-done :: Member Done r => Eff r ()
-done = success ()
-
 -- | Run a computation that might produce a computation result.
 runSuccess :: Eff (Success s ': r) a -> Eff r (Either s a)
 runSuccess = handle_relay
@@ -64,11 +59,12 @@ runSuccess = handle_relay
   (\(Success e) _ -> return (Left e))
 
 -- | Runs a success-effect, such that a successful computation returns 'Just'
---   the success value, and 'Nohting' if no value has been produced.
+-- the success value, and 'Nohting' if no value has been produced.
 execSuccess :: Eff (Success s ': r) a -> Eff r (Maybe s)
 execSuccess = fmap (either Just (const Nothing)) . runSuccess
 {-# INLINE execSuccess #-}
 
+-- | Run a success effect providing a default value
 execSuccessDef :: s -> Eff (Success s ': r) a -> Eff r s
 execSuccessDef s = fmap (either id (const s)) . runSuccess
 {-# INLINE execSuccessDef #-}
@@ -96,6 +92,10 @@ mapTopSuccess
 mapTopSuccess f m = runSuccess m >>= either (success . f) return
 
 -- | Discard the result of a succesful computation depending on a predicate
-filterSuccess :: Member (Success s) r => (s -> Bool) -> Eff r a -> Eff r ()
-filterSuccess p = interpose (const $ return ())
-    (\(Success s) _ -> when (p s) $ success s)
+filterSuccess
+  :: Member (Success s) r
+  => (s -> Bool)
+  -> Eff r a
+  -> Eff r (Either s a)
+filterSuccess p = interpose (return . Right)
+    (\(Success s) _ -> if p s then success s else return (Left s))
