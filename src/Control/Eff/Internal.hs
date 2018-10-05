@@ -144,6 +144,7 @@ instance Applicative (Eff r) where
   pure = Val
   Val f <*> e = f `fmap` e
   E u q <*> e = E u (q ^|> (`fmap` e))
+  (*>) = (>>) 
 
 instance Monad (Eff r) where
   {-# INLINE return #-}
